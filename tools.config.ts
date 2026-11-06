@@ -22,10 +22,10 @@ export type ToolConfig = {
 export const TOOLS = [
   {
     id: "mealsync",
-    name: "Dine (MealSync)",
+    name: "Dine",
     description: "Meal planning and headcounts for the PG.",
     icon: "utensils",
-    appUrl: "https://mealsync.vercel.app",
+    appUrl: "https://dine.livoza.org",
     ssoPath: "/sso",
   },
   {
@@ -33,7 +33,7 @@ export const TOOLS = [
     name: "Staff",
     description: "Staff attendance, salaries and payments.",
     icon: "users",
-    appUrl: "https://staff.vercel.app",
+    appUrl: "https://clan.livoza.org",
     ssoPath: "/sso",
   },
 ] as const satisfies readonly ToolConfig[];

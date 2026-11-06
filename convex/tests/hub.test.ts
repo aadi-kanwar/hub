@@ -196,7 +196,7 @@ describe("tool tickets", () => {
     const admin = await seedAdmin(t, "Asha Rao");
     const { url } = await admin.as.action(api.launch.ticket, { toolId: "mealsync" });
     const [base, fragment] = url.split("#ticket=");
-    expect(base).toBe("https://mealsync.vercel.app/sso");
+    expect(base).toBe("https://dine.livoza.org/sso");
     expect(url).not.toContain("?");
     const key = await importSPKI(process.env.TEST_SSO_PUBLIC_KEY!, "EdDSA");
     const { payload, protectedHeader } = await jwtVerify(fragment, key, {
