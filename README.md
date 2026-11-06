@@ -41,6 +41,17 @@ The signing key is only in the hub's Convex environment variable
 `SSO_PRIVATE_KEY`; each tool holds only the matching public key. Deactivating
 a master admin stops new tickets at once.
 
+## Removing a master admin's access
+
+- **Deactivate** stops new tickets at once. Tool logins opened from the hub
+  end within 12 hours (each tool caps them).
+- **Revoke in all apps** (on a deactivated admin's row) ends them now: the hub
+  signs a one-time request (audience `<tool id>-revoke`, 60 seconds) and sends
+  it to each tool's `revokeUrl` from `tools.config.ts`. The tool ends that
+  number's hub logins and removes the admin role only if the hub gave it.
+  Each tool that confirms is written to the activity log; the screen says if
+  one didn't answer, so you can try again.
+
 ## Security rules in the code
 
 - Every backend function is built from the permission wrappers in

@@ -249,3 +249,101 @@ describe("tool tickets", () => {
     }
   });
 });
+
+describe("revoke in all apps", () => {
+  type Sent = { url: string; token: string };
+
+  /** Replaces fetch with fake tool backends; `answer` decides each reply. */
+  function fakeTools(answer: (url: string) => Response | Promise<Response>) {
+    const sent: Sent[] = [];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      const header = new Headers(init.headers).get("Authorization") ?? "";
+      sent.push({ url, token: header.replace(/^Bearer /, "") });
+      return await answer(url);
+    });
+    return sent;
+  }
+
+  async function deactivatedAdmin() {
+    const t = await setupTest();
+    const first = await seedAdmin(t);
+    const second = await addAdmin(t, first);
+    await first.as.action(api.admins.deactivate, { userId: second.userId });
+    return { t, first, second };
+  }
+
+  test("sends each tool a signed one-time revoke request and logs the ones that confirmed", async () => {
+    const { t, first, second } = await deactivatedAdmin();
+    const sent = fakeTools(() => Response.json({ ok: true, sessionsEnded: 1, adminRemoved: true }));
+    try {
+      const { results } = await first.as.action(api.launch.revokeEverywhere, { userId: second.userId });
+      expect(results).toEqual([
+        { toolId: "mealsync", name: "Dine", ok: true },
+        { toolId: "staff", name: "Staff", ok: true },
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(sent.map((s) => s.url).sort()).toEqual([
+      "https://astute-sandpiper-776.convex.site/sso/revoke",
+      "https://judicious-tern-366.convex.site/sso/revoke",
+    ]);
+    const key = await importSPKI(process.env.TEST_SSO_PUBLIC_KEY!, "EdDSA");
+    const jtis = new Set<unknown>();
+    for (const { url, token } of sent) {
+      const audience = url.includes("judicious-tern") ? "mealsync-revoke" : "staff-revoke";
+      const { payload } = await jwtVerify(token, key, { issuer: HUB_ORIGIN, audience });
+      expect(payload).toMatchObject({ sub: second.userId, phone: second.phone });
+      expect(payload.role).toBeUndefined();
+      expect(payload.exp! - payload.iat!).toBe(60);
+      jtis.add(payload.jti);
+    }
+    expect(jtis.size).toBe(2);
+    const log = (await t.run((ctx) => ctx.db.query("activityLog").collect())).filter((e) => e.type === "revoked_in_apps");
+    expect(log.map((e) => [e.toolId, e.actorId, e.targetId]).sort()).toEqual([
+      ["mealsync", first.userId, second.userId],
+      ["staff", first.userId, second.userId],
+    ]);
+  });
+
+  test("reports a tool that refused or couldn't be reached, and logs only the confirmed one", async () => {
+    const { t, first, second } = await deactivatedAdmin();
+    fakeTools((url) => {
+      if (url.includes("astute-sandpiper")) throw new Error("network down");
+      return Response.json({ ok: true, sessionsEnded: 0, adminRemoved: false });
+    });
+    try {
+      const { results } = await first.as.action(api.launch.revokeEverywhere, { userId: second.userId });
+      expect(results.map((r) => [r.toolId, r.ok])).toEqual([
+        ["mealsync", true],
+        ["staff", false],
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    fakeTools(() => Response.json({ ok: false }, { status: 401 }));
+    try {
+      const { results } = await first.as.action(api.launch.revokeEverywhere, { userId: second.userId });
+      expect(results.every((r) => !r.ok)).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const log = (await t.run((ctx) => ctx.db.query("activityLog").collect())).filter((e) => e.type === "revoked_in_apps");
+    expect(log.map((e) => e.toolId)).toEqual(["mealsync"]);
+  });
+
+  test("only for another, already deactivated master admin, and only by a master admin", async () => {
+    const t = await setupTest();
+    const first = await seedAdmin(t);
+    const second = await addAdmin(t, first);
+    const sent = fakeTools(() => Response.json({ ok: true }));
+    try {
+      expect(await errorCode(first.as.action(api.launch.revokeEverywhere, { userId: second.userId }))).toBe("CONFLICT");
+      expect(await errorCode(first.as.action(api.launch.revokeEverywhere, { userId: first.userId }))).toBe("FORBIDDEN");
+      expect(await errorCode(t.action(api.launch.revokeEverywhere, { userId: second.userId }))).toBe("NOT_SIGNED_IN");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(sent).toHaveLength(0);
+  });
+});

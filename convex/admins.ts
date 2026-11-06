@@ -210,3 +210,21 @@ export const recordReset = internalMutation({
     return null;
   },
 });
+
+/**
+ * Who "Revoke in all apps" is for: another master admin who is already
+ * deactivated (an active one would simply get access again on their next
+ * launch, so deactivate first).
+ */
+export const revokeTarget = internalQuery({
+  args: { userId: v.id("users"), actorId: v.id("users") },
+  returns: v.object({ phone: v.string() }),
+  handler: async (ctx, { userId, actorId }) => {
+    if (userId === actorId) throw appError("FORBIDDEN", "You can't revoke your own access.");
+    const target = await ctx.db.get(userId);
+    if (target === null || target.status === undefined || !target.phone) throw appError("NOT_FOUND");
+    if (target.status === "active") throw appError("CONFLICT", "Deactivate this master admin first.");
+    return { phone: target.phone };
+  },
+});
+

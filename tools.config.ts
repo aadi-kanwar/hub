@@ -7,6 +7,10 @@
  * - icon:        any icon name from https://lucide.dev/icons (e.g. "utensils").
  * - appUrl:      the tool's website address, without a trailing slash.
  * - ssoPath:     the tool's page that accepts the hub's sign-in ticket.
+ * - revokeUrl:   the tool's "Revoke in all apps" endpoint, on its Convex
+ *                backend (https://<deployment>.convex.site/sso/revoke). It
+ *                accepts only requests signed by the hub (audience
+ *                "<id>-revoke").
  *
  * Read by both the website (cards) and the backend (where "Open" goes).
  */
@@ -17,6 +21,7 @@ export type ToolConfig = {
   icon: string;
   appUrl: string;
   ssoPath: string;
+  revokeUrl: string;
 };
 
 export const TOOLS = [
@@ -27,6 +32,7 @@ export const TOOLS = [
     icon: "utensils",
     appUrl: "https://dine.livoza.org",
     ssoPath: "/sso",
+    revokeUrl: "https://judicious-tern-366.convex.site/sso/revoke",
   },
   {
     id: "staff",
@@ -35,6 +41,7 @@ export const TOOLS = [
     icon: "users",
     appUrl: "https://clan.livoza.org",
     ssoPath: "/sso",
+    revokeUrl: "https://astute-sandpiper-776.convex.site/sso/revoke",
   },
 ] as const satisfies readonly ToolConfig[];
 

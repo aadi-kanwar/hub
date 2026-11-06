@@ -28,3 +28,16 @@ export const recordLaunch = internalMutation({
     return null;
   },
 });
+
+/** Logs "Revoke in all apps": one entry per tool that confirmed it. */
+export const recordRevoke = internalMutation({
+  args: { actorId: v.id("users"), targetId: v.id("users"), toolIds: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { actorId, targetId, toolIds }) => {
+    const actor = await ctx.db.get(actorId);
+    const target = await ctx.db.get(targetId);
+    for (const toolId of toolIds) await logActivity(ctx, { type: "revoked_in_apps", actor, target, toolId });
+    return null;
+  },
+});
+

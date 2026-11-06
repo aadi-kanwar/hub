@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction } from "convex/react";
-import { CircleCheck, CircleSlash, KeyRound, UserPlus, UserX } from "lucide-react";
+import { CircleCheck, CircleSlash, KeyRound, ShieldOff, UserPlus, UserX } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -112,12 +112,16 @@ export default function AdminsPage() {
                   </TD>
                   <TD className="whitespace-nowrap">{formatDate(admin.createdAt)}</TD>
                   <TD>
-                    {admin.status === "active" && !admin.isYou ? (
+                    {admin.isYou ? null : admin.status === "active" ? (
                       <div className="flex justify-end gap-2">
                         <ResetPasswordButton admin={admin} />
                         <DeactivateButton admin={admin} />
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="flex justify-end gap-2">
+                        <RevokeButton admin={admin} />
+                      </div>
+                    )}
                   </TD>
                 </TR>
               ))}
@@ -127,6 +131,7 @@ export default function AdminsPage() {
       )}
       <p className="text-sm text-foreground-secondary">
         To switch a deactivated master admin back on, add their number again with a new temporary password.
+        Deactivating ends their tool logins within 12 hours; use “Revoke in all apps” to end them now.
       </p>
     </>
   );
@@ -318,3 +323,63 @@ function DeactivateButton({ admin }: { admin: AdminRow }) {
     </Dialog>
   );
 }
+
+/** Joins names as "Dine", "Dine and Staff", "A, B and C". */
+function listNames(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+/** For a deactivated master admin: end their hub logins in every tool and remove the admin role the hub gave them. */
+function RevokeButton({ admin }: { admin: AdminRow }) {
+  const [open, setOpen] = useState(false);
+  const revoke = useAction(api.launch.revokeEverywhere);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary">
+          <Icon icon={ShieldOff} />
+          Revoke in all apps
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        title={`Revoke ${admin.name}'s access in all apps?`}
+        description="Signs them out of every tool they opened from the hub, now instead of within 12 hours, and removes the admin role the hub gave them. Anything they had in a tool before the hub, such as their own login there, is kept."
+      >
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="secondary">Cancel</Button>
+          </DialogClose>
+          <Button
+            variant="destructive"
+            loading={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const { results } = await revoke({ userId: admin.userId });
+                const done = results.filter((r) => r.ok).map((r) => r.name);
+                const failed = results.filter((r) => !r.ok).map((r) => r.name);
+                if (failed.length === 0) {
+                  toast.success(`${admin.name}'s access is removed in ${listNames(done)}.`);
+                  setOpen(false);
+                } else {
+                  toast.error(
+                    `${listNames(failed)} didn't confirm. Please try again in a moment.` +
+                      (done.length > 0 ? ` (Done in ${listNames(done)}.)` : ""),
+                  );
+                }
+              } catch (error) {
+                toast.error(friendlyError(error));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Revoke in all apps
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
