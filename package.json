@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "codegen:offline": "node scripts/codegen-offline.cjs",
     "format": "prettier --write .",
-    "seed": "convex run seed:createFirstAdmin"
+    "seed": "convex run seed:createFirstAdmin",
+    "sso:keys": "node scripts/generate-sso-keys.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

@@ -62,7 +62,12 @@ checklist given at deployment.
 3. On the hub's Convex deployment set `SEED_ADMIN_NAME`, `SEED_ADMIN_PHONE`,
    `SEED_ADMIN_PASSWORD`, then deploy. The first deploy creates the first
    master admin (or run `npm run seed`). Remove `SEED_ADMIN_PASSWORD` afterwards.
-4. Set `SSO_PRIVATE_KEY` (made by `scripts/generate-sso-keys`).
+4. Make the single sign-on keys once with `npm run sso:keys` (it prints the
+   `npx convex env set` commands). `SSO_PRIVATE_KEY` goes on the hub's Convex
+   deployment only; `HUB_SSO_PUBLIC_KEY` goes on MealSync's and Staff's. Also set
+   `HUB_ORIGIN` on MealSync and Staff to the hub's address (the same value as
+   the hub's `SITE_URL`). `npm run sso:keys -- --out <folder>` writes the keys to
+   files outside the repository instead of printing them.
 
 > Careful: if a terminal already has a `CONVEX_DEPLOY_KEY` for MealSync or
 > Staff, Convex commands run here would go to **that** app. Always check
