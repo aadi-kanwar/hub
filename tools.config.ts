@@ -32,7 +32,7 @@ export const TOOLS = [
     icon: "utensils",
     appUrl: "https://dine.livoza.org",
     ssoPath: "/sso",
-    revokeUrl: "https://judicious-tern-366.convex.site/sso/revoke",
+    revokeUrl: "https://decisive-axolotl-579.convex.site/sso/revoke",
   },
   {
     id: "staff",
@@ -41,7 +41,7 @@ export const TOOLS = [
     icon: "users",
     appUrl: "https://clan.livoza.org",
     ssoPath: "/sso",
-    revokeUrl: "https://astute-sandpiper-776.convex.site/sso/revoke",
+    revokeUrl: "https://pleasant-labrador-141.convex.site/sso/revoke",
   },
 ] as const satisfies readonly ToolConfig[];
 

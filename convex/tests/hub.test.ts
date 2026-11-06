@@ -285,13 +285,13 @@ describe("revoke in all apps", () => {
       vi.unstubAllGlobals();
     }
     expect(sent.map((s) => s.url).sort()).toEqual([
-      "https://astute-sandpiper-776.convex.site/sso/revoke",
-      "https://judicious-tern-366.convex.site/sso/revoke",
+      "https://decisive-axolotl-579.convex.site/sso/revoke",
+      "https://pleasant-labrador-141.convex.site/sso/revoke",
     ]);
     const key = await importSPKI(process.env.TEST_SSO_PUBLIC_KEY!, "EdDSA");
     const jtis = new Set<unknown>();
     for (const { url, token } of sent) {
-      const audience = url.includes("judicious-tern") ? "mealsync-revoke" : "staff-revoke";
+      const audience = url.includes("decisive-axolotl") ? "mealsync-revoke" : "staff-revoke";
       const { payload } = await jwtVerify(token, key, { issuer: HUB_ORIGIN, audience });
       expect(payload).toMatchObject({ sub: second.userId, phone: second.phone });
       expect(payload.role).toBeUndefined();
@@ -309,7 +309,7 @@ describe("revoke in all apps", () => {
   test("reports a tool that refused or couldn't be reached, and logs only the confirmed one", async () => {
     const { t, first, second } = await deactivatedAdmin();
     fakeTools((url) => {
-      if (url.includes("astute-sandpiper")) throw new Error("network down");
+      if (url.includes("pleasant-labrador")) throw new Error("network down");
       return Response.json({ ok: true, sessionsEnded: 0, adminRemoved: false });
     });
     try {
