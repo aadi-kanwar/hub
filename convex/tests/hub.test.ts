@@ -286,14 +286,14 @@ describe("revoke in all apps", () => {
       vi.unstubAllGlobals();
     }
     expect(sent.map((s) => s.url).sort()).toEqual([
-      "https://adjoining-donkey-809.convex.site/sso/revoke",
+      "https://agreeable-koala-751.convex.site/sso/revoke",
       "https://decisive-axolotl-579.convex.site/sso/revoke",
       "https://pleasant-labrador-141.convex.site/sso/revoke",
     ]);
     const key = await importSPKI(process.env.TEST_SSO_PUBLIC_KEY!, "EdDSA");
     const jtis = new Set<unknown>();
     for (const { url, token } of sent) {
-      const audience = url.includes("decisive-axolotl") ? "mealsync-revoke" : url.includes("adjoining-donkey") ? "crate-revoke" : "staff-revoke";
+      const audience = url.includes("decisive-axolotl") ? "mealsync-revoke" : url.includes("agreeable-koala") ? "crate-revoke" : "staff-revoke";
       const { payload } = await jwtVerify(token, key, { issuer: HUB_ORIGIN, audience });
       expect(payload).toMatchObject({ sub: second.userId, phone: second.phone });
       expect(payload.role).toBeUndefined();
