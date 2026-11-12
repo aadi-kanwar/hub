@@ -43,6 +43,15 @@ export const TOOLS = [
     ssoPath: "/sso",
     revokeUrl: "https://pleasant-labrador-141.convex.site/sso/revoke",
   },
+  {
+    id: "crate",
+    name: "Crate",
+    description: "Kitchen purchases, usage & price history",
+    icon: "shopping-basket",
+    appUrl: "https://crate.livoza.org",
+    ssoPath: "/sso",
+    revokeUrl: "https://adjoining-donkey-809.convex.site/sso/revoke",
+  },
 ] as const satisfies readonly ToolConfig[];
 
 export type ToolId = (typeof TOOLS)[number]["id"];
