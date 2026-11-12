@@ -280,27 +280,30 @@ describe("revoke in all apps", () => {
       expect(results).toEqual([
         { toolId: "mealsync", name: "Dine", ok: true },
         { toolId: "staff", name: "Staff", ok: true },
+        { toolId: "crate", name: "Crate", ok: true },
       ]);
     } finally {
       vi.unstubAllGlobals();
     }
     expect(sent.map((s) => s.url).sort()).toEqual([
+      "https://adjoining-donkey-809.convex.site/sso/revoke",
       "https://decisive-axolotl-579.convex.site/sso/revoke",
       "https://pleasant-labrador-141.convex.site/sso/revoke",
     ]);
     const key = await importSPKI(process.env.TEST_SSO_PUBLIC_KEY!, "EdDSA");
     const jtis = new Set<unknown>();
     for (const { url, token } of sent) {
-      const audience = url.includes("decisive-axolotl") ? "mealsync-revoke" : "staff-revoke";
+      const audience = url.includes("decisive-axolotl") ? "mealsync-revoke" : url.includes("adjoining-donkey") ? "crate-revoke" : "staff-revoke";
       const { payload } = await jwtVerify(token, key, { issuer: HUB_ORIGIN, audience });
       expect(payload).toMatchObject({ sub: second.userId, phone: second.phone });
       expect(payload.role).toBeUndefined();
       expect(payload.exp! - payload.iat!).toBe(60);
       jtis.add(payload.jti);
     }
-    expect(jtis.size).toBe(2);
+    expect(jtis.size).toBe(3);
     const log = (await t.run((ctx) => ctx.db.query("activityLog").collect())).filter((e) => e.type === "revoked_in_apps");
     expect(log.map((e) => [e.toolId, e.actorId, e.targetId]).sort()).toEqual([
+      ["crate", first.userId, second.userId],
       ["mealsync", first.userId, second.userId],
       ["staff", first.userId, second.userId],
     ]);
@@ -317,6 +320,7 @@ describe("revoke in all apps", () => {
       expect(results.map((r) => [r.toolId, r.ok])).toEqual([
         ["mealsync", true],
         ["staff", false],
+        ["crate", true],
       ]);
     } finally {
       vi.unstubAllGlobals();
@@ -329,7 +333,7 @@ describe("revoke in all apps", () => {
       vi.unstubAllGlobals();
     }
     const log = (await t.run((ctx) => ctx.db.query("activityLog").collect())).filter((e) => e.type === "revoked_in_apps");
-    expect(log.map((e) => e.toolId)).toEqual(["mealsync"]);
+    expect(log.map((e) => e.toolId).sort()).toEqual(["crate", "mealsync"]);
   });
 
   test("only for another, already deactivated master admin, and only by a master admin", async () => {
