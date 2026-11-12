@@ -50,7 +50,7 @@ export const TOOLS = [
     icon: "shopping-basket",
     appUrl: "https://crate.livoza.org",
     ssoPath: "/sso",
-    revokeUrl: "https://adjoining-donkey-809.convex.site/sso/revoke",
+    revokeUrl: "https://agreeable-koala-751.convex.site/sso/revoke",
   },
 ] as const satisfies readonly ToolConfig[];
 
