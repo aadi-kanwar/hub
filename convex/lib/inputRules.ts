@@ -57,3 +57,15 @@ export const displayNameSchema = z
   .trim()
   .min(2, "Enter the full name.")
   .max(80, "Use at most 80 characters.");
+
+export const propertyNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Enter the property's name.")
+  .max(80, "Use at most 80 characters.");
+
+export const roomNumberSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter your room number.")
+  .max(20, "Use at most 20 characters.");

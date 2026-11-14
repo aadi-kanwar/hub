@@ -28,8 +28,9 @@ async function configureEnv() {
 
 export async function setupTest() {
   await configureEnv();
-  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   vi.setSystemTime(new Date("2027-04-20T06:30:00Z"));
+  // Scheduled sync sends never reach a real tool; tests call sendSync() with fakeTools().
   return convexTest(schema, modules);
 }
 
@@ -78,12 +79,80 @@ export async function seedAdmin(t: T, name = "First Admin") {
 
 export type Admin = Awaited<ReturnType<typeof seedAdmin>>;
 
-/** Another master admin added through the real action, past the first-login password change. */
-export async function addAdmin(t: T, by: Admin, name = "Second Admin") {
+/** Another person added by a master admin through the real action, past the first-login password change. */
+export async function addPerson(
+  t: T,
+  by: Admin,
+  options: {
+    name?: string;
+    profileType?: "admin" | "warden" | "staff" | "resident";
+    propertyIds?: Id<"properties">[];
+    roomNumber?: string;
+  } = {},
+) {
   const phone = nextPhone();
-  const { userId } = await by.as.action(api.admins.create, { name, phone, temporaryPassword: PASSWORD });
+  const { userId } = await by.as.action(api.people.create, {
+    name: options.name ?? "Second Admin",
+    phone,
+    profileType: options.profileType ?? "admin",
+    propertyIds: options.propertyIds ?? [],
+    roomNumber: options.roomNumber,
+    temporaryPassword: PASSWORD,
+  });
   await t.run((ctx) => ctx.db.patch(userId, { mustChangePassword: false }));
   return { userId, phone, as: await signedInAs(t, userId) };
+}
+
+export const addAdmin = (t: T, by: Admin, name = "Second Admin") => addPerson(t, by, { name });
+
+export async function addProperty(t: T, name = "Green PG") {
+  return await t.mutation(internal.properties.createInternal, { name });
+}
+
+export async function joinCodeOf(t: T, propertyId: Id<"properties">) {
+  return await t.run(async (ctx) => (await ctx.db.get(propertyId))!.joinCode);
+}
+
+/** Signs up a resident with a join code (the real login flow). */
+export const signUp = (
+  t: T,
+  params: { phone: string; password?: string; name?: string; joinCode: string; roomNumber?: string },
+) =>
+  t.action(api.auth.signIn, {
+    provider: "phone-password",
+    params: {
+      flow: "signUp",
+      phone: params.phone,
+      password: params.password ?? PASSWORD,
+      name: params.name ?? "Riya Sen",
+      joinCode: params.joinCode,
+      roomNumber: params.roomNumber ?? "204",
+    },
+  });
+
+export type Sent = { url: string; token: string };
+
+/**
+ * Replaces fetch with fake tool backends; `answer` decides each reply (by
+ * default every tool says ok). Returns what was sent.
+ */
+export function fakeTools(answer: (url: string) => Response | Promise<Response> = () => Response.json({ ok: true })) {
+  const sent: Sent[] = [];
+  vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+    const header = new Headers(init.headers).get("Authorization") ?? "";
+    sent.push({ url, token: header.replace(/^Bearer /, "") });
+    return await answer(url);
+  });
+  return sent;
+}
+
+/** Runs the queued sync jobs now (normally done by the scheduler and the cron). */
+export async function sendSync(t: T) {
+  await t.action(internal.syncNode.sendDue, {});
+}
+
+export async function waitingJobs(t: T) {
+  return await t.run((ctx) => ctx.db.query("syncJobs").collect());
 }
 
 /** The ConvexError code thrown by `promise`, or "NO_ERROR". */

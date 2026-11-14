@@ -27,6 +27,16 @@ const LABELS: Record<ActivityType, string> = {
   password_reset: "Reset a password",
   password_changed: "Changed own password",
   revoked_in_apps: "Revoked access in all apps",
+  signed_up: "Signed up as a resident",
+  person_added: "Added a person",
+  person_reactivated: "Switched a person back on",
+  person_deactivated: "Deactivated a person",
+  type_changed: "Changed a profile type",
+  properties_changed: "Changed someone's properties",
+  property_added: "Added a property",
+  property_renamed: "Renamed a property",
+  join_code_changed: "Changed a join code",
+  imported_from_tools: "Imported from the tools",
 };
 
 const PAGE_SIZE = 50;
@@ -103,7 +113,13 @@ function details(entry: Doc<"activityLog">): string {
       return phone;
     case "password_changed":
       return "";
+    case "property_added":
+    case "property_renamed":
+    case "join_code_changed":
+    case "imported_from_tools":
+    case "signed_up":
+      return entry.detail ?? "";
     default:
-      return [entry.targetName, phone].filter(Boolean).join(", ");
+      return [entry.targetName, entry.detail, phone].filter(Boolean).join(", ");
   }
 }

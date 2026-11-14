@@ -20,8 +20,8 @@ const displaySerif = localFont({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Admin Hub", template: "%s · Admin Hub" },
-  description: "Livoza Admin Hub: one sign-in for every tool.",
+  title: { default: "Livoza Hub", template: "%s · Livoza Hub" },
+  description: "Livoza Hub: one sign-in for every Livoza tool.",
   // Private tool: keep it out of search engines.
   robots: { index: false, follow: false },
 };

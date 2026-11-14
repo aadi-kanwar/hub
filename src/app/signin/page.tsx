@@ -2,7 +2,8 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js";
+import type { CountryCode } from "libphonenumber-js";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -16,11 +17,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { PasswordInput } from "@/components/ui/password-input";
 import { friendlyError } from "@/lib/errors";
-
-function toE164(country: CountryCode, input: string): string | null {
-  const parsed = parsePhoneNumberFromString(input.trim(), country);
-  return parsed && parsed.isValid() ? parsed.number : null;
-}
+import { COUNTRY_OPTIONS, toE164 } from "@/lib/phone";
 
 const schema = z
   .object({
@@ -36,17 +33,7 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-// A fixed list; India first.
-const COUNTRY_NAMES: Array<[CountryCode, string]> = [
-  ["IN", "India"],
-  ["NP", "Nepal"],
-  ["BD", "Bangladesh"],
-  ["LK", "Sri Lanka"],
-  ["AE", "United Arab Emirates"],
-];
-const COUNTRY_OPTIONS = COUNTRY_NAMES.map(([code, name]) => ({ code, label: `${name} (+${getCountryCallingCode(code)})` }));
-
-/** Mobile number + password. There's no sign-up: master admins add each other. */
+/** Mobile number + password, for everyone. New residents sign up with their PG's join code. */
 export default function SignInPage() {
   const { signIn } = useAuthActions();
   const router = useRouter();
@@ -60,7 +47,9 @@ export default function SignInPage() {
     setServerError(null);
     try {
       await signIn("phone-password", { phone: toE164(values.country as CountryCode, values.phone)!, password: values.password });
-      router.replace("/");
+      // Back to the tool that sent them here (only /open/<tool>), else home.
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.replace(next && /^\/open\/[\w-]+$/.test(next) ? next : "/");
     } catch (error) {
       setServerError(friendlyError(error));
     }
@@ -73,7 +62,7 @@ export default function SignInPage() {
         <h1 className="font-serif text-3xl tracking-tight">
           Every tool, <em className="text-primary-soft">one sign-in.</em>
         </h1>
-        <p className="text-foreground-secondary">For master admins only. Sign in with your mobile number.</p>
+        <p className="text-foreground-secondary">Sign in with your mobile number to open your Livoza tools.</p>
       </div>
       <Card>
         <CardBody>
@@ -102,11 +91,17 @@ export default function SignInPage() {
               Sign in
             </Button>
             <p className="text-sm text-foreground-secondary">
-              Forgot your password? Ask another master admin to reset it.
+              Forgot your password? Ask your PG&apos;s admin to reset it.
             </p>
           </form>
         </CardBody>
       </Card>
+      <p className="text-center text-sm text-foreground-secondary">
+        New resident?{" "}
+        <Link href="/signup" className="font-medium text-primary-text underline underline-offset-4">
+          Sign up with your PG&apos;s join code
+        </Link>
+      </p>
     </main>
   );
 }

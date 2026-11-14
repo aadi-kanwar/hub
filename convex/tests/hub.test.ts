@@ -44,18 +44,20 @@ describe("login", () => {
     const t = await setupTest();
     const first = await seedAdmin(t);
     const phone = nextPhone();
-    const { userId } = await first.as.action(api.admins.create, {
+    const { userId } = await first.as.action(api.people.create, {
       name: "New Admin",
       phone,
+      profileType: "admin",
+      propertyIds: [],
       temporaryPassword: PASSWORD,
     });
     const as = await signedInAs(t, userId);
     expect((await as.query(api.users.me, {}))?.mustChangePassword).toBe(true);
-    expect(await errorCode(as.query(api.admins.list, {}))).toBe("PASSWORD_CHANGE_REQUIRED");
+    expect(await errorCode(as.query(api.people.list, {}))).toBe("PASSWORD_CHANGE_REQUIRED");
     expect(await errorCode(as.action(api.launch.ticket, { toolId: "staff" }))).toBe("PASSWORD_CHANGE_REQUIRED");
     await as.action(api.users.changePassword, { newPassword: "my-own-pass-77" });
     expect((await as.query(api.users.me, {}))?.mustChangePassword).toBe(false);
-    expect(await as.query(api.admins.list, {})).toHaveLength(2);
+    expect(await as.query(api.people.list, {})).toHaveLength(2);
     expect((await signIn(t, phone, "my-own-pass-77")).tokens?.token).toBeTruthy();
   });
 
@@ -94,19 +96,7 @@ describe("login", () => {
     expect((await signIn(t, admin.phone, PASSWORD)).tokens?.token).toBeTruthy();
   });
 
-  test("there is no sign-up", async () => {
-    const t = await setupTest();
-    const result = await errorCode(
-      t.action(api.auth.signIn, {
-        provider: "phone-password",
-        params: { phone: nextPhone(), password: PASSWORD, flow: "signUp" },
-      }),
-    );
-    expect(result).toBe("FORBIDDEN");
-    expect(await t.run((ctx) => ctx.db.query("users").collect())).toEqual([]);
-  });
 });
-
 describe("master admin management", () => {
   test("add, deactivate, reactivate and reset", async () => {
     const t = await setupTest();
@@ -114,32 +104,34 @@ describe("master admin management", () => {
     const second = await addAdmin(t, first);
     expect(
       await errorCode(
-        first.as.action(api.admins.create, { name: "Dup Admin", phone: second.phone, temporaryPassword: PASSWORD }),
+        first.as.action(api.people.create, { name: "Dup Admin", phone: second.phone, profileType: "admin", propertyIds: [], temporaryPassword: PASSWORD }),
       ),
     ).toBe("CONFLICT");
 
-    await first.as.action(api.admins.deactivate, { userId: second.userId });
+    await first.as.action(api.people.deactivate, { userId: second.userId });
     // Their session ends at once, and they can't sign in.
     expect(await second.as.query(api.users.me, {})).toBeNull();
     expect(await errorCode(signIn(t, second.phone, PASSWORD))).toBe("SIGN_IN_FAILED");
 
     // Adding the number again switches them back on with a new temporary password.
-    const { reactivated } = await first.as.action(api.admins.create, {
+    const { reactivated } = await first.as.action(api.people.create, {
       name: "Second Admin",
       phone: second.phone,
+      profileType: "admin",
+      propertyIds: [],
       temporaryPassword: "fresh-start-9",
     });
     expect(reactivated).toBe(true);
     expect((await signIn(t, second.phone, "fresh-start-9")).tokens?.token).toBeTruthy();
 
-    await first.as.action(api.admins.resetPassword, { userId: second.userId, temporaryPassword: "another-one-5" });
+    await first.as.action(api.people.resetPassword, { userId: second.userId, temporaryPassword: "another-one-5" });
     expect(await errorCode(signIn(t, second.phone, "fresh-start-9"))).toBe("SIGN_IN_FAILED");
     expect((await signIn(t, second.phone, "another-one-5")).tokens?.token).toBeTruthy();
     const user = await t.run((ctx) => ctx.db.get(second.userId));
-    expect(user?.mustChangePassword).toBe(true);
+    expect((user as { mustChangePassword?: boolean } | null)?.mustChangePassword).toBe(true);
 
     const types = await activityTypes(t);
-    for (const type of ["admin_added", "admin_deactivated", "admin_reactivated", "password_reset"] as const) {
+    for (const type of ["admin_added", "admin_deactivated", "person_reactivated", "password_reset"] as const) {
       expect(types).toContain(type);
     }
   });
@@ -148,17 +140,17 @@ describe("master admin management", () => {
     const t = await setupTest();
     const first = await seedAdmin(t);
     await addAdmin(t, first);
-    expect(await errorCode(first.as.action(api.admins.deactivate, { userId: first.userId }))).toBe("FORBIDDEN");
+    expect(await errorCode(first.as.action(api.people.deactivate, { userId: first.userId }))).toBe("FORBIDDEN");
   });
 
   test("there is always at least one active master admin", async () => {
     const t = await setupTest();
     const first = await seedAdmin(t);
     const second = await addAdmin(t, first);
-    await first.as.action(api.admins.deactivate, { userId: second.userId });
+    await first.as.action(api.people.deactivate, { userId: second.userId });
     // Even a (now inactive) second admin acting could not remove the last one.
     expect(
-      await errorCode(t.mutation(internal.admins.markInactive, { userId: first.userId, actorId: second.userId })),
+      await errorCode(t.mutation(internal.people.markInactive, { userId: first.userId, actorId: second.userId })),
     ).toBe("FORBIDDEN");
     const active = await t.run((ctx) =>
       ctx.db.query("users").withIndex("by_status", (q) => q.eq("status", "active")).collect(),
@@ -170,13 +162,19 @@ describe("master admin management", () => {
     const t = await setupTest();
     await seedAdmin(t);
     expect(await t.query(api.users.me, {})).toBeNull();
-    expect(await errorCode(t.query(api.admins.list, {}))).toBe("NOT_SIGNED_IN");
+    expect(await errorCode(t.query(api.people.list, {}))).toBe("NOT_SIGNED_IN");
     expect(
       await errorCode(t.query(api.activity.list, { paginationOpts: { numItems: 10, cursor: null } })),
     ).toBe("NOT_SIGNED_IN");
     expect(await errorCode(t.action(api.launch.ticket, { toolId: "staff" }))).toBe("NOT_SIGNED_IN");
     expect(
-      await errorCode(t.action(api.admins.create, { name: "X Y", phone: nextPhone(), temporaryPassword: PASSWORD })),
+      await errorCode(t.action(api.people.create, {
+          name: "X Y",
+          phone: nextPhone(),
+          profileType: "admin",
+          propertyIds: [],
+          temporaryPassword: PASSWORD,
+        })),
     ).toBe("NOT_SIGNED_IN");
   });
 
@@ -208,7 +206,9 @@ describe("tool tickets", () => {
       sub: admin.userId,
       phone: admin.phone,
       name: "Asha Rao",
-      role: "master_admin",
+      profileType: "admin",
+      role: "admin",
+      properties: "*",
     });
     expect(payload.exp! - payload.iat!).toBe(60);
     expect(typeof payload.jti).toBe("string");
@@ -228,7 +228,7 @@ describe("tool tickets", () => {
     const t = await setupTest();
     const first = await seedAdmin(t);
     const second = await addAdmin(t, first);
-    await first.as.action(api.admins.deactivate, { userId: second.userId });
+    await first.as.action(api.people.deactivate, { userId: second.userId });
     expect(await errorCode(second.as.action(api.launch.ticket, { toolId: "staff" }))).toBe("NOT_SIGNED_IN");
     // Even with a session somehow still open, an inactive account is refused.
     const reopened = await signedInAs(t, second.userId);
@@ -250,104 +250,3 @@ describe("tool tickets", () => {
   });
 });
 
-describe("revoke in all apps", () => {
-  type Sent = { url: string; token: string };
-
-  /** Replaces fetch with fake tool backends; `answer` decides each reply. */
-  function fakeTools(answer: (url: string) => Response | Promise<Response>) {
-    const sent: Sent[] = [];
-    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-      const header = new Headers(init.headers).get("Authorization") ?? "";
-      sent.push({ url, token: header.replace(/^Bearer /, "") });
-      return await answer(url);
-    });
-    return sent;
-  }
-
-  async function deactivatedAdmin() {
-    const t = await setupTest();
-    const first = await seedAdmin(t);
-    const second = await addAdmin(t, first);
-    await first.as.action(api.admins.deactivate, { userId: second.userId });
-    return { t, first, second };
-  }
-
-  test("sends each tool a signed one-time revoke request and logs the ones that confirmed", async () => {
-    const { t, first, second } = await deactivatedAdmin();
-    const sent = fakeTools(() => Response.json({ ok: true, sessionsEnded: 1, adminRemoved: true }));
-    try {
-      const { results } = await first.as.action(api.launch.revokeEverywhere, { userId: second.userId });
-      expect(results).toEqual([
-        { toolId: "mealsync", name: "Dine", ok: true },
-        { toolId: "staff", name: "Staff", ok: true },
-        { toolId: "crate", name: "Crate", ok: true },
-      ]);
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    expect(sent.map((s) => s.url).sort()).toEqual([
-      "https://agreeable-koala-751.convex.site/sso/revoke",
-      "https://decisive-axolotl-579.convex.site/sso/revoke",
-      "https://pleasant-labrador-141.convex.site/sso/revoke",
-    ]);
-    const key = await importSPKI(process.env.TEST_SSO_PUBLIC_KEY!, "EdDSA");
-    const jtis = new Set<unknown>();
-    for (const { url, token } of sent) {
-      const audience = url.includes("decisive-axolotl") ? "mealsync-revoke" : url.includes("agreeable-koala") ? "crate-revoke" : "staff-revoke";
-      const { payload } = await jwtVerify(token, key, { issuer: HUB_ORIGIN, audience });
-      expect(payload).toMatchObject({ sub: second.userId, phone: second.phone });
-      expect(payload.role).toBeUndefined();
-      expect(payload.exp! - payload.iat!).toBe(60);
-      jtis.add(payload.jti);
-    }
-    expect(jtis.size).toBe(3);
-    const log = (await t.run((ctx) => ctx.db.query("activityLog").collect())).filter((e) => e.type === "revoked_in_apps");
-    expect(log.map((e) => [e.toolId, e.actorId, e.targetId]).sort()).toEqual([
-      ["crate", first.userId, second.userId],
-      ["mealsync", first.userId, second.userId],
-      ["staff", first.userId, second.userId],
-    ]);
-  });
-
-  test("reports a tool that refused or couldn't be reached, and logs only the confirmed one", async () => {
-    const { t, first, second } = await deactivatedAdmin();
-    fakeTools((url) => {
-      if (url.includes("pleasant-labrador")) throw new Error("network down");
-      return Response.json({ ok: true, sessionsEnded: 0, adminRemoved: false });
-    });
-    try {
-      const { results } = await first.as.action(api.launch.revokeEverywhere, { userId: second.userId });
-      expect(results.map((r) => [r.toolId, r.ok])).toEqual([
-        ["mealsync", true],
-        ["staff", false],
-        ["crate", true],
-      ]);
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    fakeTools(() => Response.json({ ok: false }, { status: 401 }));
-    try {
-      const { results } = await first.as.action(api.launch.revokeEverywhere, { userId: second.userId });
-      expect(results.every((r) => !r.ok)).toBe(true);
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    const log = (await t.run((ctx) => ctx.db.query("activityLog").collect())).filter((e) => e.type === "revoked_in_apps");
-    expect(log.map((e) => e.toolId).sort()).toEqual(["crate", "mealsync"]);
-  });
-
-  test("only for another, already deactivated master admin, and only by a master admin", async () => {
-    const t = await setupTest();
-    const first = await seedAdmin(t);
-    const second = await addAdmin(t, first);
-    const sent = fakeTools(() => Response.json({ ok: true }));
-    try {
-      expect(await errorCode(first.as.action(api.launch.revokeEverywhere, { userId: second.userId }))).toBe("CONFLICT");
-      expect(await errorCode(first.as.action(api.launch.revokeEverywhere, { userId: first.userId }))).toBe("FORBIDDEN");
-      expect(await errorCode(t.action(api.launch.revokeEverywhere, { userId: second.userId }))).toBe("NOT_SIGNED_IN");
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    expect(sent).toHaveLength(0);
-  });
-});

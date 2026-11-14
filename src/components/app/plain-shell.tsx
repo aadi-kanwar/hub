@@ -12,7 +12,7 @@ export function PlainShell({ children }: { children: React.ReactNode }) {
       header={
         <header className="border-b border-border bg-surface">
           <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-4">
-            <Link href="/" aria-label="Admin Hub home">
+            <Link href="/" aria-label="Livoza Hub home">
               <Brand />
             </Link>
             <SignOutButton />

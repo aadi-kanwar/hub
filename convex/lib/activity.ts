@@ -14,6 +14,7 @@ export async function logActivity(
     target?: Doc<"users"> | null;
     phone?: string;
     toolId?: string;
+    detail?: string;
   },
 ): Promise<void> {
   await ctx.db.insert("activityLog", {
@@ -24,6 +25,7 @@ export async function logActivity(
     targetName: entry.target?.name,
     phone: entry.phone ?? entry.target?.phone,
     toolId: entry.toolId,
+    detail: entry.detail,
     createdAt: Date.now(),
   });
 }

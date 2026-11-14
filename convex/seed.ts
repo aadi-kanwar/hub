@@ -14,7 +14,7 @@ import { createAccount } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { PHONE_PASSWORD_PROVIDER } from "./auth";
-import { setUpNewAdmin } from "./admins";
+import { setUpFirstAdmin } from "./people";
 import { appError } from "./lib/errors";
 import { internalAction, internalMutation, internalQuery } from "./lib/functions";
 import { displayNameSchema, normalizePhone, passwordProblem } from "./lib/inputRules";
@@ -57,7 +57,7 @@ export const adminExists = internalQuery({
 export const finishFirstAdmin = internalMutation({
   args: { userId: v.id("users"), name: v.string() },
   handler: async (ctx, { userId, name }) => {
-    await setUpNewAdmin(ctx, { userId, name, actorId: undefined });
+    await setUpFirstAdmin(ctx, { userId, name });
     return null;
   },
 });

@@ -1,5 +1,7 @@
 import { v } from "convex/values";
-import { internalQuery, requireAdmin, requireUser, type SignedInViewer } from "./lib/functions";
+import { internalQuery, requireAdmin, requireMember, requireUser, type SignedInViewer } from "./lib/functions";
+import { profileTypeOf } from "./lib/profiles";
+import { vProfileType } from "./lib/validators";
 
 /**
  * Permission checks for actions (signedInAction / adminAction in
@@ -12,6 +14,7 @@ const vActionViewer = v.object({
   name: v.string(),
   phone: v.string(),
   mustChangePassword: v.boolean(),
+  profileType: vProfileType,
 });
 
 function describe({ userId, user }: SignedInViewer) {
@@ -20,6 +23,7 @@ function describe({ userId, user }: SignedInViewer) {
     name: user.name ?? "",
     phone: user.phone ?? "",
     mustChangePassword: user.mustChangePassword === true,
+    profileType: profileTypeOf(user),
   };
 }
 
@@ -29,13 +33,19 @@ export const viewerForAction = internalQuery({
   handler: async (ctx) => describe(await requireUser(ctx)),
 });
 
+export const memberForAction = internalQuery({
+  args: {},
+  returns: vActionViewer,
+  handler: async (ctx) => describe(await requireMember(ctx)),
+});
+
 export const adminForAction = internalQuery({
   args: {},
   returns: vActionViewer,
   handler: async (ctx) => describe(await requireAdmin(ctx)),
 });
 
-/** Only active master admins may sign in. */
+/** Only active people may sign in. */
 export const canSignIn = internalQuery({
   args: { userId: v.id("users") },
   returns: v.boolean(),

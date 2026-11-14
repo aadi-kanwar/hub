@@ -27,7 +27,7 @@ export function HubSidebar({
   const pathname = usePathname();
   return (
     <nav
-      aria-label={preview ? "Admin Hub (preview)" : "Admin Hub"}
+      aria-label={preview ? "Livoza Hub (preview)" : "Livoza Hub"}
       className={cn(
         "w-60 shrink-0 flex-col justify-between border-r border-border bg-surface p-3 print:hidden",
         preview ? "flex" : "hidden overflow-y-auto md:flex",
