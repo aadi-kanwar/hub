@@ -6,6 +6,7 @@ import { logActivity } from "./lib/activity";
 import { appError } from "./lib/errors";
 import { internalMutation, signedInAction, viewerQuery } from "./lib/functions";
 import { passwordProblem } from "./lib/inputRules";
+import { profileTypeOf, propertyIdsOf } from "./lib/profiles";
 
 /**
  * What the app needs to decide which screen to show. Returns null when
@@ -20,6 +21,10 @@ export const me = viewerQuery({
       name: user.name ?? "",
       phone: user.phone ?? null,
       mustChangePassword: user.mustChangePassword === true,
+      profileType: profileTypeOf(user),
+      propertyNames: await Promise.all(
+        (await propertyIdsOf(ctx, user._id)).map(async (id) => (await ctx.db.get(id))?.name ?? ""),
+      ),
     };
   },
 });

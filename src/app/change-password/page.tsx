@@ -38,7 +38,7 @@ function buildSchema(needsCurrent: boolean, phone: string | null) {
 }
 
 /**
- * Choose a new password. Right after another master admin creates the account or resets it, this screen is
+ * Choose a new password. Right after an admin creates the account or resets it, this screen is
  * shown first and the current (temporary) password isn't asked again.
  */
 export default function ChangePasswordPage() {

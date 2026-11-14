@@ -6,10 +6,12 @@
  *
  * Wrappers that browsers can call:
  *   viewerQuery          - signed in or not; ctx.viewer is null when signed out
- *   signedInAction       - an active master admin, even before they replaced
+ *   signedInAction       - any active person, even before they replaced
  *                          their temporary password (the password change itself)
- *   adminQuery/Mutation  - an active master admin who has chosen their own
- *   adminAction            password (ctx.admin)
+ *   memberQuery/Action   - any active person who has chosen their own
+ *                          password (ctx.member)
+ *   adminQuery/Mutation  - an active master admin (profile type "admin") who
+ *   adminAction            has chosen their own password (ctx.admin)
  *
  * Internal wrappers (never callable from a browser; only from other backend
  * functions or the owner via the Convex dashboard / CLI):
@@ -34,6 +36,8 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { appError } from "./errors";
+import { profileTypeOf, SESSION_LIMITS } from "./profiles";
+import type { ProfileType } from "./validators";
 
 type ReadCtx = Pick<QueryCtx, "db" | "auth">;
 
@@ -43,18 +47,40 @@ export type SignedInViewer = { userId: Id<"users">; user: Doc<"users"> };
  * The signed-in account, or null. Identity always comes from the session,
  * never from arguments. The session must still exist: a deactivation,
  * password reset or change deletes sessions, and their tokens stop working at once.
+ *
+ * Logins last as long as the person's profile type allows (lib/profiles.ts):
+ * Convex Auth keeps every login for the longest time, and a master admin's
+ * login is treated as ended here once it's older than 8 hours or unused for 2.
  */
 export async function getViewer(ctx: ReadCtx): Promise<SignedInViewer | null> {
   const userId = await getAuthUserId(ctx);
   if (userId === null) return null;
   const sessionId = await getAuthSessionId(ctx);
-  if (sessionId === null || (await ctx.db.get(sessionId)) === null) return null;
+  if (sessionId === null) return null;
+  const session = await ctx.db.get(sessionId);
+  if (session === null) return null;
   const user = await ctx.db.get(userId);
   if (user === null) return null;
+  if (!(await sessionWithinLimits(ctx, session, profileTypeOf(user)))) return null;
   return { userId, user };
 }
 
-/** An active master admin (their temporary password may not be replaced yet). */
+async function sessionWithinLimits(ctx: ReadCtx, session: Doc<"authSessions">, type: ProfileType) {
+  const limits = SESSION_LIMITS[type];
+  const now = Date.now();
+  if (now - session._creationTime > limits.totalMs) return false;
+  // A login's token is renewed while it's in use, so its newest refresh token
+  // shows when it was last used.
+  const latest = await ctx.db
+    .query("authRefreshTokens")
+    .withIndex("sessionId", (q) => q.eq("sessionId", session._id))
+    .order("desc")
+    .first();
+  const lastUsed = latest?._creationTime ?? session._creationTime;
+  return now - lastUsed <= limits.inactiveMs;
+}
+
+/** An active person (their temporary password may not be replaced yet). */
 export async function requireUser(ctx: ReadCtx): Promise<SignedInViewer> {
   const viewer = await getViewer(ctx);
   if (viewer === null) throw appError("NOT_SIGNED_IN");
@@ -62,10 +88,17 @@ export async function requireUser(ctx: ReadCtx): Promise<SignedInViewer> {
   return viewer;
 }
 
-/** An active master admin who has chosen their own password. */
-export async function requireAdmin(ctx: ReadCtx): Promise<SignedInViewer> {
+/** An active person who has chosen their own password. */
+export async function requireMember(ctx: ReadCtx): Promise<SignedInViewer> {
   const viewer = await requireUser(ctx);
   if (viewer.user.mustChangePassword) throw appError("PASSWORD_CHANGE_REQUIRED");
+  return viewer;
+}
+
+/** An active master admin who has chosen their own password. */
+export async function requireAdmin(ctx: ReadCtx): Promise<SignedInViewer> {
+  const viewer = await requireMember(ctx);
+  if (profileTypeOf(viewer.user) !== "admin") throw appError("FORBIDDEN");
   return viewer;
 }
 
@@ -91,6 +124,11 @@ export const viewerQuery = customQuery(
   customCtx(async (ctx) => ({ viewer: await getViewer(ctx) })),
 );
 
+export const memberQuery = customQuery(
+  rawQuery,
+  customCtx(async (ctx) => ({ member: await requireMember(ctx) })),
+);
+
 export const adminQuery = customQuery(
   rawQuery,
   customCtx(async (ctx) => ({ admin: await requireAdmin(ctx) })),
@@ -109,10 +147,14 @@ export type ActionViewer = {
   name: string;
   phone: string;
   mustChangePassword: boolean;
+  profileType: ProfileType;
 };
 
 const viewerForAction = makeFunctionReference<"query", Record<string, never>, ActionViewer>(
   "access:viewerForAction",
+);
+const memberForAction = makeFunctionReference<"query", Record<string, never>, ActionViewer>(
+  "access:memberForAction",
 );
 const adminForAction = makeFunctionReference<"query", Record<string, never>, ActionViewer>(
   "access:adminForAction",
@@ -121,6 +163,11 @@ const adminForAction = makeFunctionReference<"query", Record<string, never>, Act
 export const signedInAction = customAction(
   rawAction,
   customCtx(async (ctx) => ({ viewer: await ctx.runQuery(viewerForAction, {}) })),
+);
+
+export const memberAction = customAction(
+  rawAction,
+  customCtx(async (ctx) => ({ member: await ctx.runQuery(memberForAction, {}) })),
 );
 
 export const adminAction = customAction(

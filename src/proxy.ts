@@ -6,18 +6,22 @@ import {
 
 /**
  * Runs on the web server before every page. Nobody without a hub login
- * gets any page except /signin; signed-in people are sent away from /signin.
- * Every hub function also checks, on the Convex backend, that the caller is
- * an active master admin, and the pages check again in the browser.
+ * gets any page except /signin and /signup; signed-in people are sent away
+ * from them. Every hub function also checks, on the Convex backend, who the
+ * caller is and what their profile type allows, and the pages check again.
  */
-const isSignInPage = createRouteMatcher(["/signin"]);
+const isSignInPage = createRouteMatcher(["/signin", "/signup"]);
 
 export const proxy = convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   const signedIn = await convexAuth.isAuthenticated();
   if (isSignInPage(request)) {
     return signedIn ? nextjsMiddlewareRedirect(request, "/") : undefined;
   }
-  if (!signedIn) return nextjsMiddlewareRedirect(request, "/signin");
+  if (!signedIn) {
+    // Coming back from a tool whose login ended (/open/<tool>): sign in, then carry on there.
+    const next = request.nextUrl.pathname.startsWith("/open/") ? `?next=${encodeURIComponent(request.nextUrl.pathname)}` : "";
+    return nextjsMiddlewareRedirect(request, `/signin${next}`);
+  }
 });
 
 export const config = {

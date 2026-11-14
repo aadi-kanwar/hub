@@ -2,7 +2,7 @@ import Image from "next/image";
 import livozaLogo from "../../../public/livoza-logo.png";
 import { cn } from "@/lib/utils";
 
-/** The app name with the Livoza logo: [Livoza logo] | Admin Hub. */
+/** The app name with the Livoza logo: [Livoza logo] | Hub. */
 export function Brand({ size = "md", className }: { size?: "md" | "lg"; className?: string }) {
   return (
     <span className={cn("inline-flex shrink-0 items-center", size === "lg" ? "gap-3" : "gap-2", className)}>
@@ -18,7 +18,7 @@ export function Brand({ size = "md", className }: { size?: "md" | "lg"; classNam
           size === "lg" ? "pl-3 text-3xl" : "pl-2 text-2xl",
         )}
       >
-        Admin Hub
+        Hub
       </span>
     </span>
   );

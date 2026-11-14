@@ -5,34 +5,52 @@ import { ArrowRight } from "lucide-react";
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import { useState } from "react";
 import { api } from "@convex/_generated/api";
-import { TOOLS, type ToolConfig } from "@root/tools.config";
+import type { FunctionReturnType } from "convex/server";
+import { useMe } from "@/components/app/session";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/states";
 import { toast } from "@/components/ui/toaster";
+import { useQuery } from "@/lib/convex";
 import { friendlyError } from "@/lib/errors";
 
-/** The launcher: one card per tool in tools.config.ts. */
+type Tool = FunctionReturnType<typeof api.tools.mine>[number];
+
+/** The launcher: one card per tool this person's profile type may open. */
 export default function ToolsPage() {
+  const me = useMe();
+  const tools = useQuery(api.tools.mine, {});
   return (
     <>
       <PageHeader
-        title="Tools"
-        description="Open a tool and you’re signed in to it as an admin. No second login."
+        title={me ? `Hi, ${me.name.split(" ")[0]}` : "Tools"}
+        description={
+          me && me.propertyNames.length > 0
+            ? `${me.propertyNames.join(", ")}. Open a tool and you’re signed in to it. No second login.`
+            : "Open a tool and you’re signed in to it. No second login."
+        }
       />
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {TOOLS.map((tool) => (
-          <li key={tool.id}>
-            <ToolCard tool={tool} />
-          </li>
-        ))}
-      </ul>
+      {tools === undefined ? (
+        <LoadingState />
+      ) : tools.length === 0 ? (
+        <EmptyState title="No tools yet" description="Your profile doesn’t have any tools yet. Ask your PG’s admin." />
+      ) : (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {tools.map((tool) => (
+            <li key={tool.id}>
+              <ToolCard tool={tool} />
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 }
 
-function ToolCard({ tool }: { tool: ToolConfig }) {
+function ToolCard({ tool }: { tool: Tool }) {
   const getTicket = useAction(api.launch.ticket);
   const [busy, setBusy] = useState(false);
   return (

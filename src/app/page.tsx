@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { destinationFor, useMe } from "@/components/app/session";
+import { destinationFor, useEndStaleLogin, useMe } from "@/components/app/session";
 import { Spinner } from "@/components/ui/spinner";
 
 /** Sends everyone to the right screen. */
 export default function Home() {
   const me = useMe();
   const router = useRouter();
+  useEndStaleLogin(me);
   useEffect(() => {
     if (me !== undefined) router.replace(destinationFor(me));
   }, [me, router]);

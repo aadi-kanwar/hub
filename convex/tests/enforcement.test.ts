@@ -63,7 +63,7 @@ test("only lib/functions.ts imports raw query/mutation/action builders", () => {
 
 test("every exported Convex function is built from a permission wrapper", () => {
   const wrapperNames =
-    /\b(viewerQuery|signedInAction|adminQuery|adminMutation|adminAction|internalQuery|internalMutation|internalAction)\(/;
+    /\b(viewerQuery|signedInAction|memberQuery|memberAction|adminQuery|adminMutation|adminAction|internalQuery|internalMutation|internalAction)\(/;
   const offenders: string[] = [];
   for (const [path, source] of backendFiles()) {
     if (
@@ -90,7 +90,7 @@ test("every exported Convex function is built from a permission wrapper", () => 
 
 /**
  * Secrets: the website's JavaScript is downloadable by anyone, so it must
- * never read the signing key, and only the backend's launch action may.
+ * never read the signing key, and only the backend's signing helper may.
  */
 const websiteSources = import.meta.glob("../../src/**/*.{ts,tsx}", {
   query: "?raw",
@@ -98,11 +98,11 @@ const websiteSources = import.meta.glob("../../src/**/*.{ts,tsx}", {
   eager: true,
 }) as Record<string, string>;
 
-test("only convex/launch.ts reads the single sign-on signing key", () => {
+test("only convex/lib/ssoSign.ts reads the single sign-on signing key", () => {
   expect(Object.keys(websiteSources).length).toBeGreaterThan(10);
   const offenders = [...Object.entries(websiteSources), ...backendFiles()]
     .filter(([path]) => !path.startsWith("./"))
-    .filter(([path, source]) => path !== "../launch.ts" && /SSO_PRIVATE_KEY/.test(source))
+    .filter(([path, source]) => path !== "../lib/ssoSign.ts" && /SSO_PRIVATE_KEY/.test(source))
     .map(([path]) => path);
   expect(offenders).toEqual([]);
 });
