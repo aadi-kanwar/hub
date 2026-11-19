@@ -64,6 +64,17 @@ export const TOOLS = [
     backendUrl: "https://agreeable-koala-751.convex.site",
     roles: { admin: "admin", warden: "manager", staff: null, resident: null },
   },
+  {
+    id: "float",
+    name: "Float",
+    description: "Resident pocket money, points & perks",
+    icon: "wallet",
+    appUrl: "https://float.livoza.org",
+    ssoPath: "/sso",
+    backendUrl: "https://handsome-rat-740.convex.site",
+    roles: { admin: "admin", warden: null, staff: null, resident: "resident" },
+    labels: { resident: { name: "Float", description: "Pocket money against your deposit, and perks." } },
+  },
 ] as const satisfies readonly ToolConfig[];
 
 export type ToolId = (typeof TOOLS)[number]["id"];

@@ -42,6 +42,7 @@ signed), and optional `labels` rename a card for a type.
 | Dine | admin | warden | - | resident |
 | Staff ("My Attendance & Pay" for staff) | admin | - | staff | - |
 | Crate | admin | manager | - | - |
+| Float | admin | - | - | resident |
 
 Adding a tool = one entry there, plus the hub endpoints in the tool.
 

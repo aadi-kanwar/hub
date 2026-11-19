@@ -32,7 +32,7 @@ async function verify(token: string, audience: string) {
 }
 
 describe("resident sign-up with a join code", () => {
-  test("creates an active resident of the code's property, sent to Dine only", async () => {
+  test("creates an active resident of the code's property, sent to Dine and Float", async () => {
     const t = await setupTest();
     await seedAdmin(t);
     const propertyId = await addProperty(t, "Green PG");
@@ -45,9 +45,9 @@ describe("resident sign-up with a join code", () => {
     expect(user).toMatchObject({ name: "Riya Sen", status: "active", profileType: "resident", roomNumber: "12B" });
     const as = await signedInAs(t, user!._id);
     expect(await as.query(api.users.me, {})).toMatchObject({ profileType: "resident", propertyNames: ["Green PG"] });
-    expect((await as.query(api.tools.mine, {})).map((tool) => tool.id)).toEqual(["mealsync"]);
+    expect((await as.query(api.tools.mine, {})).map((tool) => tool.id)).toEqual(["mealsync", "float"]);
     const personJobs = (await waitingJobs(t)).filter((job) => job.kind === "person");
-    expect(personJobs.map((job) => job.toolId)).toEqual(["mealsync"]);
+    expect(personJobs.map((job) => job.toolId)).toEqual(["mealsync", "float"]);
     expect(await activityTypes(t)).toContain("signed_up");
   });
 
@@ -99,7 +99,7 @@ describe("people and profile types", () => {
     expect(await staff.as.query(api.tools.mine, {})).toEqual([
       expect.objectContaining({ id: "staff", name: "My Attendance & Pay" }),
     ]);
-    expect((await admin.as.query(api.tools.mine, {})).map((tool) => tool.id)).toEqual(["mealsync", "staff", "crate"]);
+    expect((await admin.as.query(api.tools.mine, {})).map((tool) => tool.id)).toEqual(["mealsync", "staff", "crate", "float"]);
     // Non-admins can't manage anything.
     expect(await errorCode(warden.as.query(api.people.list, {}))).toBe("FORBIDDEN");
     expect(await errorCode(staff.as.mutation(api.properties.create, { name: "PG C" }))).toBe("FORBIDDEN");
@@ -139,6 +139,7 @@ describe("people and profile types", () => {
     const jobs = await waitingJobs(t);
     expect(jobs.map((job) => [job.toolId, job.revoke]).sort()).toEqual([
       ["crate", true],
+      ["float", true],
       ["mealsync", true],
     ]);
     const sent = fakeTools();
@@ -350,7 +351,7 @@ describe("import from the tools", () => {
     });
     const result = await admin.as.action(api.importer.apply, { propertyTargets: [], typeChoices: [] });
     expect(result.ok).toBe(false);
-    expect(result.failed).toHaveLength(3);
+    expect(result.failed).toHaveLength(4);
   });
 });
 
