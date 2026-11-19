@@ -4,7 +4,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AppFrame } from "@/components/app/app-frame";
 import { Brand } from "@/components/app/brand";
-import { destinationFor, useEndStaleLogin, SignOutButton, useMe } from "@/components/app/session";
+import {
+  destinationFor,
+  useEndStaleLogin,
+  SignOutButton,
+  useMe,
+} from "@/components/app/session";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { isAdminPath, navFor } from "@/components/nav/nav-items";
 import { PROFILE_TYPE_LABELS } from "@convex/lib/profiles";
 import { BottomNav, HubSidebar } from "@/components/nav/hub-nav";
@@ -21,9 +27,11 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   useEndStaleLogin(me);
   const pathname = usePathname();
-  const blocked = me != null && me.profileType !== "admin" && isAdminPath(pathname);
+  const blocked =
+    me != null && me.profileType !== "admin" && isAdminPath(pathname);
   useEffect(() => {
-    if (me === null || me?.mustChangePassword) router.replace(destinationFor(me));
+    if (me === null || me?.mustChangePassword)
+      router.replace(destinationFor(me));
     else if (blocked) router.replace("/tools");
   }, [me, router, blocked]);
 
@@ -48,7 +56,10 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
             </div>
             {/* On phones, Log out is in the bottom bar's More menu. */}
             <span className="hidden md:block">
-              <SignOutButton />
+              <span className="flex items-center gap-1">
+                <ThemeToggle />
+                <SignOutButton />
+              </span>
             </span>
           </div>
         </header>
@@ -58,8 +69,15 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
         <BottomNav
           items={navFor(me.profileType).filter((item) => item.mobile !== false)}
           more={{
-            items: navFor(me.profileType).filter((item) => item.mobile === false),
-            footer: <SignOutButton variant="ghost" full />,
+            items: navFor(me.profileType).filter(
+              (item) => item.mobile === false,
+            ),
+            footer: (
+              <>
+                <ThemeToggle full />
+                <SignOutButton variant="ghost" full />
+              </>
+            ),
           }}
         />
       }
