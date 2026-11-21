@@ -1,4 +1,4 @@
-import { DownloadCloud, Building2, History, KeyRound, LayoutGrid, Users, type LucideIcon } from "lucide-react";
+import { BedDouble, DownloadCloud, Building2, History, KeyRound, LayoutGrid, Users, type LucideIcon } from "lucide-react";
 import type { ProfileType } from "@convex/lib/validators";
 
 export type NavItem = {
@@ -9,10 +9,13 @@ export type NavItem = {
   mobile?: boolean;
   /** Only master admins see it (and the page itself refuses everyone else). */
   adminOnly?: boolean;
+  /** Only these profile types see it (the page and backend check too). */
+  types?: ProfileType[];
 };
 
 export const HUB_NAV: NavItem[] = [
   { href: "/tools", label: "Tools", icon: LayoutGrid },
+  { href: "/beds", label: "Beds", icon: BedDouble, types: ["admin", "warden"] },
   { href: "/people", label: "People", icon: Users, adminOnly: true },
   { href: "/properties", label: "Properties", icon: Building2, adminOnly: true },
   { href: "/activity", label: "Activity", icon: History, adminOnly: true, mobile: false },
@@ -21,7 +24,9 @@ export const HUB_NAV: NavItem[] = [
 ];
 
 export function navFor(type: ProfileType): NavItem[] {
-  return HUB_NAV.filter((item) => type === "admin" || !item.adminOnly);
+  return HUB_NAV.filter(
+    (item) => (type === "admin" || !item.adminOnly) && (item.types === undefined || item.types.includes(type)),
+  );
 }
 
 /** Pages only master admins may open. */

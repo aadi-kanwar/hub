@@ -37,6 +37,7 @@ const LABELS: Record<ActivityType, string> = {
   property_renamed: "Renamed a property",
   join_code_changed: "Changed a join code",
   imported_from_tools: "Imported from the tools",
+  bed_board_changed: "Changed the bed board",
 };
 
 const PAGE_SIZE = 50;
@@ -118,6 +119,7 @@ function details(entry: Doc<"activityLog">): string {
     case "join_code_changed":
     case "imported_from_tools":
     case "signed_up":
+    case "bed_board_changed":
       return entry.detail ?? "";
     default:
       return [entry.targetName, entry.detail, phone].filter(Boolean).join(", ");
