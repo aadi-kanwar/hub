@@ -40,7 +40,35 @@ export const vActivityType = v.union(
   v.literal("property_renamed"),
   v.literal("join_code_changed"),
   v.literal("imported_from_tools"),
+  // Bed board changes (a bed, a room, the layout or the table).
+  v.literal("bed_board_changed"),
 );
 export type ActivityType = Infer<typeof vActivityType>;
 
 export const vSyncKind = v.union(v.literal("person"), v.literal("property"));
+
+// Bed board (see lib/bedBoard.ts).
+export const vTenantStatus = v.union(v.literal("occupied"), v.literal("reserved"), v.literal("notice"));
+export const vBedStatus = v.union(v.literal("vacant"), vTenantStatus);
+export const vRoomType = v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4));
+export const vFieldType = v.union(
+  v.literal("text"),
+  v.literal("number"),
+  v.literal("money"),
+  v.literal("date"),
+  v.literal("tel"),
+  v.literal("select"),
+  v.literal("textarea"),
+);
+export const vBoardFloor = v.object({ n: v.number(), name: v.string() });
+export const vBoardRoom = v.object({ no: v.string(), floor: v.number(), type: vRoomType });
+export const vBoardField = v.object({
+  k: v.string(),
+  label: v.string(),
+  type: vFieldType,
+  on: v.array(vTenantStatus),
+  options: v.optional(v.array(v.string())),
+  warden: v.boolean(),
+});
+export const vTenant = v.record(v.string(), v.union(v.string(), v.number()));
+

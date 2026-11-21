@@ -1,7 +1,18 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { vActivityType, vAdminStatus, vProfileType, vRecordStatus, vSyncKind } from "./lib/validators";
+import {
+  vActivityType,
+  vAdminStatus,
+  vBoardField,
+  vBoardFloor,
+  vBoardRoom,
+  vProfileType,
+  vRecordStatus,
+  vSyncKind,
+  vTenant,
+  vTenantStatus,
+} from "./lib/validators";
 
 /**
  * Livoza Hub data model: the one sign-in for everyone. The hub owns people
@@ -107,6 +118,37 @@ export default defineSchema({
     propertyId: v.id("properties"),
     toolPropertyId: v.string(),
   }).index("by_tool_property", ["toolId", "propertyId"]),
+
+  /**
+   * One bed board per property (convex/bedBoard.ts): its floors, rooms and
+   * the columns kept for each tenant. `version` goes up with every change, so
+   * a whole-table or layout save made from an older copy is refused instead
+   * of overwriting someone else's change.
+   */
+  bedBoards: defineTable({
+    propertyId: v.id("properties"),
+    floors: v.array(vBoardFloor),
+    rooms: v.array(vBoardRoom),
+    fields: v.array(vBoardField),
+    version: v.number(),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.id("users")),
+  }).index("by_property", ["propertyId"]),
+
+  /**
+   * Who is in (or booked for, or leaving) each bed. One row per property +
+   * bed ("203-A"); a vacant bed has no row. Tenant details are visible to
+   * master admins, and to the property's wardens only for the columns
+   * marked for them.
+   */
+  bedEntries: defineTable({
+    propertyId: v.id("properties"),
+    bedId: v.string(),
+    status: vTenantStatus,
+    tenant: vTenant,
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.id("users")),
+  }).index("by_property_bed", ["propertyId", "bedId"]),
 
   // Failed sign-in attempts per phone number (registered or not), and the
   // 15-minute lock after too many.

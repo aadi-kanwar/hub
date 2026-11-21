@@ -39,8 +39,10 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-hook-form": "^7.91.0",
+    "read-excel-file": "9.3.14",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "write-excel-file": "4.1.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

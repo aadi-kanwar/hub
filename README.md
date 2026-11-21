@@ -54,6 +54,30 @@ Adding a tool = one entry there, plus the hub endpoints in the tool.
 - Admins only: `/people` (add, edit type/properties/room, reset password,
   deactivate), `/properties` (add, rename, join codes), `/activity`,
   `/import` (one-time import from the tools).
+- `/beds`: the bed board, one per property (see below). Admins and
+  wardens/managers only.
+
+## Bed board
+
+Who is in each bed, who is booked and who is leaving, per property: a floor
+plan (tap a bed for details), a spreadsheet-style table (paste from Excel,
+import an .xlsx/.csv, download Excel), and a layout editor for floors and
+rooms. Rules shared by the website and backend are in
+`convex/lib/bedBoard.ts`; the backend is `convex/bedBoard.ts`.
+
+- **Admins** see and change every property's board.
+- **Wardens/managers** see their own properties' boards, read-only, and only
+  the columns marked "Wardens can see this" (Columns panel). By default that
+  is name, contact details, work or college, dates and notes; rent, deposit,
+  booking advance, rent status and ID proof stay admin-only. The backend
+  removes hidden columns before anything is sent to a warden. New columns
+  start hidden from wardens.
+- Staff and residents have no access.
+- A board is set up from the Beds page: either the earlier bed board's rooms
+  (Floors 2 to 5, 46 rooms, 95 beds) or one empty floor.
+- Every change is in the activity log. Whole-table and layout saves are
+  refused if someone else changed the board meanwhile, instead of
+  overwriting their change.
 
 ## How "Open" signs you in (single sign-on)
 
