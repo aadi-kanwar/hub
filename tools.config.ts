@@ -73,7 +73,7 @@ export const TOOLS = [
     ssoPath: "/sso",
     backendUrl: "https://handsome-rat-740.convex.site",
     roles: { admin: "admin", warden: null, staff: null, resident: "resident" },
-    labels: { resident: { name: "Float", description: "Pocket money against your deposit, and perks." } },
+    labels: { resident: { name: "Float", description: "Pocket money, points and perks." } },
   },
 ] as const satisfies readonly ToolConfig[];
 
